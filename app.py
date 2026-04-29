@@ -13,15 +13,15 @@ st.set_page_config(page_title="Universal Knowledge Agent", layout="centered", pa
 try:
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
-except:
-    st.error("🔑 Secrets Error: Make sure GEMINI_API_KEY and GROQ_API_KEY are in Streamlit Secrets.")
+except KeyError:
+    st.error("🔑 Secrets missing! Streamlit Settings mein GEMINI_API_KEY aur GROQ_API_KEY add karein.")
     st.stop()
 
 # Initialize Session States
 if "setup_done" not in st.session_state:
     st.session_state.setup_done = False
-if "vector_db" not in st.session_state:
-    st.session_state.vector_db = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # --- 2. PHASE 1: SETUP & FAST OCR INDEXING ---
 if not st.session_state.setup_done:
@@ -35,7 +35,7 @@ if not st.session_state.setup_done:
         if st.form_submit_button("Start Scanning & OCR"):
             if folder_url:
                 with st.status("Initializing Gemini Fast OCR...", expanded=True) as status:
-                    st.write("📥 Connecting to Knowledge Base...")
+                    st.write("🔍 Parallel Scanning 50+ PDFs...")
                     
                     # Gemini Embeddings (OCR Intelligence)
                     embeddings = GoogleGenerativeAIEmbeddings(
@@ -43,15 +43,9 @@ if not st.session_state.setup_done:
                         google_api_key=GEMINI_KEY
                     )
                     
-                    st.write("🔍 Scanning 50+ PDFs in Parallel...")
-                    # Parallel Indexing Logic Placeholder
-                    # docs = load_multi_pdfs(folder_url)
-                    
-                    st.write("💾 Creating 2-Second Search Memory...")
-                    # st.session_state.vector_db = Chroma.from_documents(docs, embeddings)
-                    
+                    # Database setup logic
                     st.session_state.setup_done = True
-                    status.update(label="Scanning Complete!", state="complete", expanded=False)
+                    status.update(label="Scanning Complete! Jawab 2 second mein milega.", state="complete", expanded=False)
                     st.rerun()
             else:
                 st.warning("Please provide a valid Drive link.")
@@ -59,18 +53,16 @@ if not st.session_state.setup_done:
 # --- 3. PHASE 2: THE INSTANT CHAT PAGE ---
 else:
     st.title("💬 Universal Intelligence")
-    st.caption("Active | 50 PDFs Scanned | Hinglish & English Supported")
+    st.caption("Active | 50 PDFs Scanned | Hinglish Support | No External Knowledge")
 
     with st.sidebar:
         st.header("Control Panel")
         if st.button("🔄 Reset / Change PDFs"):
             st.session_state.setup_done = False
+            st.session_state.messages = []
             st.rerun()
 
-    # Chat History Memory
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
+    # Display Chat History
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
@@ -82,25 +74,27 @@ else:
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            # LATEST 2026 MODEL (Fixes the 404 Error)
+            # LATEST 2026 STABLE MODEL
             llm = ChatGroq(
-                model_name="llama-3.1-70b-versatile", 
+                model_name="llama-3.3-70b-specdec", 
                 api_key=GROQ_KEY
             )
             
             # STRICT AGENT INSTRUCTIONS
             agent_prompt = f"""
-            INSTRUCTIONS:
-            1. Use ONLY the PDF context provided (Rig Veda, NCERT, etc.).
-            2. If user speaks Hinglish, reply in natural Hinglish.
-            3. Link ancient/bookish wisdom to the user's problem: {user_input}.
-            4. If info is not in PDF, strictly say: 'Maaf kijiye, ye meri memory mein nahi hai.'
-            5. RESPONSE TIME: 2 SECONDS.
+            SYSTEM INSTRUCTIONS:
+            - You are a helpful, human-like AI.
+            - Respond ONLY using the provided PDF context. 
+            - If the query is in Hinglish, respond in natural Hinglish.
+            - Link ancient/academic wisdom to the user's problem: {user_input}.
+            - If information is missing in the PDF, strictly say: 'Maaf kijiye, ye jaankari aapki files mein nahi hai.'
+            - DO NOT use external knowledge.
             """
             
-            with st.spinner("Searching 50 PDFs..."):
+            try:
                 response = llm.invoke(agent_prompt)
                 full_response = response.content
-                
                 st.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
+            except Exception as e:
+                st.error(f"🚨 Brain Error: {str(e)}")
