@@ -9,7 +9,7 @@ try:
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
 except KeyError:
-    st.error("🔑 Secrets missing! Streamlit Settings mein check karein.")
+    st.error("🔑 Secrets missing! Settings mein GEMINI_API_KEY aur GROQ_API_KEY check karein.")
     st.stop()
 
 if "setup_done" not in st.session_state:
@@ -21,17 +21,17 @@ if "messages" not in st.session_state:
 if not st.session_state.setup_done:
     st.title("🤖 Universal Language Agent")
     with st.form("setup_form"):
-        st.info("Scan your Drive folder for Multilingual Support (Odia/Hindi/English).")
+        st.info("Drive folder scan karke Odia/Hindi/English support shuru karein.")
         folder_url = st.text_input("Folder Link:", placeholder="https://drive.google.com/...")
         if st.form_submit_button("Initialize & Scan"):
             if folder_url:
                 st.session_state.setup_done = True
                 st.rerun()
 
-# --- 3. PHASE 2: THE MULTILINGUAL CHAT ---
+# --- 3. PHASE 2: MULTILINGUAL CHAT ---
 else:
     st.title("💬 Multilingual Intelligence")
-    st.caption("Active | Supports: Odia, Hindi, English, Hinglish, Odianglish")
+    st.caption("Supports: English, Hindi, Hinglish, Odia, Odianglish")
 
     with st.sidebar:
         if st.button("🔄 Reset Session"):
@@ -49,29 +49,24 @@ else:
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            # LATEST STABLE MODEL
+            # LATEST STABLE MODEL (Updated to avoid decommissioned error)
             llm = ChatGroq(model_name="llama-3.3-70b-versatile", api_key=GROQ_KEY, temperature=0.6)
             
-            # --- THE MULTILINGUAL "SOUL" PROMPT ---
             multilingual_prompt = f"""
-            You are a professional, empathetic multilingual mentor.
-            The user query is: '{user_input}'
+            You are a wise mentor. The user says: '{user_input}'
             
-            STRICT LANGUAGE RULES:
-            1. Language Detection: Detect the language of the user query.
-            2. Language Matching: Respond ONLY in the same language/dialect as the user.
-               - English query -> Professional English.
-               - Hindi query -> Clean Hindi.
-               - Hinglish query -> Natural Hinglish.
-               - Odia query -> Proper Odia.
-               - Odianglish query -> Friendly Odianglish (mix of Odia/English).
-            
-            INSTRUCTIONS:
-            - Use ONLY the provided PDF context for facts.
-            - Explain the concepts deeply, connecting them to the user's life.
-            - If info is missing in PDF, say it politely in the SAME language.
-            - Do not be a robotic translator; be a wise mentor.
+            RULES:
+            1. Respond ONLY in the same language as the user (English, Hindi, Odia, Hinglish, or Odianglish).
+            2. Use the PDF context to explain shlokas or facts deeply.
+            3. Link the knowledge to the user's real-life problem naturally.
+            4. If the info isn't in the PDF, say it politely in the SAME language.
             """
             
             try:
-                with st.spinner("Processing in your language..."):
+                # Proper indentation here to fix your IndentationError
+                with st.spinner("Processing..."):
+                    response = llm.invoke(multilingual_prompt)
+                    st.markdown(response.content)
+                    st.session_state.messages.append({"role": "assistant", "content": response.content})
+            except Exception as e:
+                st.error(f"🚨 Brain Error: {str(e)}")
