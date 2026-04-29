@@ -7,4 +7,3 @@ langchain-text-splitters
 langchain-classic
 pypdf
 chromadb
-gdown
