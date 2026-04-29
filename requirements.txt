@@ -1,5 +1,7 @@
 streamlit
 langchain
+langchain-text-splitters
+langchain-community
 langchain-groq
 langchain-google-genai
 google-api-python-client
