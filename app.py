@@ -28,7 +28,7 @@ if not st.session_state.ready:
             groq_key = st.text_input("Groq API Key:", type="password")
             
             if st.form_submit_button("Initialize Startup Agent"):
-                if folder_url and gemini_key and groq_api:
+                if folder_url and gemini_key and groq_key:
                     with st.spinner("Agent is performing OCR on Folder..."):
                         try:
                             # Using the corrected library addresses
@@ -38,7 +38,7 @@ if not st.session_state.ready:
                             )
                             
                             st.session_state.ready = True
-                            st.session_state.groq_key = groq_api
+                            st.session_state.groq_key = groq_key
                             st.session_state.gemini_key = gemini_key
                             st.rerun()
                         except Exception as e:
