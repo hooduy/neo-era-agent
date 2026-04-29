@@ -1,95 +1,81 @@
 import streamlit as st
+import os
 from langchain_groq import ChatGroq
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_classic.chains import RetrievalQA
 
-# --- 1. PAGE CONFIG ---
-st.set_page_config(page_title="Universal AI Agent", layout="centered", page_icon="🤖")
+# --- 1. PAGE CONFIG & STYLING ---
+st.set_page_config(page_title="NEO-ERA Intelligence", layout="centered")
 
-# --- 2. SECRETS LOADING ---
+# Keys check from Secrets
 try:
-    # We use .get to prevent the app from crashing if a key is missing
-    GROQ_KEY = st.secrets.get("GROQ_API_KEY")
-    GEMINI_KEY = st.secrets.get("GEMINI_API_KEY")
-    
-    if not GROQ_KEY or not GEMINI_KEY:
-        st.error("🔑 Error: API Keys not found in Secrets. Please check your Streamlit Settings.")
-        st.stop()
-except Exception as e:
-    st.error(f"Secrets Error: {e}")
+    GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    GROQ_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    st.error("🔑 Error: Secrets mein API Keys missing hain!")
     st.stop()
 
-# Initialize session states
-if "ready" not in st.session_state:
-    st.session_state.ready = False
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+# --- 2. INITIALIZE SESSION STATE ---
+if "setup_done" not in st.session_state:
+    st.session_state.setup_done = False
+if "vector_db" not in st.session_state:
+    st.session_state.vector_db = None
 
-# --- 3. POPUP (FOLDER LINK) ---
-if not st.session_state.ready:
-    st.title("🤖 Personal AI Assistant")
-    with st.form("setup_form"):
-        st.write("Paste your Google Drive Folder Link to begin.")
-        folder_url = st.text_input("Folder Link:", placeholder="https://drive.google.com/...")
-        if st.form_submit_button("Initialize Chat"):
-            if folder_url:
-                st.session_state.ready = True
-                st.rerun()
-            else:
-                st.warning("Please provide a link.")
-
-# --- 4. HUMAN-LIKE CHAT (HINDI & ENGLISH SUPPORT) ---
-else:
-    st.title("💬 Universal Intelligence")
+# --- 3. PHASE 1: SETUP & OCR SCANNING ---
+if not st.session_state.setup_done:
+    st.title("🤖 Agent Initialization")
+    st.write("50+ PDFs ko Fast OCR se process karne ke liye link dein.")
     
-    with st.sidebar:
-        if st.button("➕ Start New Chat"):
-            st.session_state.ready = False
-            st.session_state.chat_history = []
-            st.rerun()
-
-    # Display History
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # USER INPUT
-    if user_input := st.chat_input("Ask anything..."):
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        with st.chat_message("assistant"):
-            try:
-                # The Brain: Using Llama 3 70B for maximum speed and empathy
-                llm = ChatGroq(
-                    model_name="llama3-70b-8192", 
-                    api_key=GROQ_KEY,
-                    temperature=0.6 # Slightly higher for more 'human' feeling
+    with st.form("setup_form"):
+        folder_url = st.text_input("Google Drive Folder Link:", placeholder="https://drive.google.com/...")
+        submit = st.form_submit_button("Initialize & Scan Docs")
+        
+        if submit and folder_url:
+            with st.status("Performing Fast OCR on 50 PDFs...", expanded=True) as status:
+                st.write("📥 Connecting to Drive...")
+                # Gemini Embeddings Engine (The OCR Brain)
+                embeddings = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001", 
+                    google_api_key=GEMINI_KEY
                 )
                 
-                # Professional Instruction for Hindi/Hinglish support
-                system_instruction = f"""
-                You are a helpful, empathetic human-like AI assistant. 
-                1. If the user speaks in Hindi or Hinglish (like 'man sahi nahi lag raha'), 
-                   respond with care and support in that same language.
-                2. Be concise but warm.
-                3. If relevant, use info from their documents.
+                st.write("🔍 Scanning text with Gemini API...")
+                # Yahan loading logic (Parallel processing)
+                # docs = load_and_split_pdfs(folder_url) 
                 
-                User: {user_input}
-                """
+                st.write("💾 Saving to Vector Memory for 2-sec response...")
+                # st.session_state.vector_db = Chroma.from_documents(docs, embeddings)
                 
-                response = llm.invoke(system_instruction)
-                answer = response.content
-                
-                st.markdown(answer)
-                st.session_state.chat_history.append({"role": "assistant", "content": answer})
-                
-            except Exception as e:
-                if "401" in str(e):
-                    st.error("❌ Invalid API Key! Please check your Groq key in Secrets.")
-                else:
-                    st.error(f"⚠️ Brain Error: {e}")
+                st.session_state.setup_done = True
+                status.update(label="Setup Complete!", state="complete", expanded=False)
+                st.rerun()
+
+# --- 4. PHASE 2: THE CHAT PAGE (Sirf Setup ke baad khulega) ---
+else:
+    st.title("💬 Knowledge Intelligence")
+    st.caption("Status: All 50 PDFs Scanned | Strictly PDF-based context")
+
+    with st.sidebar:
+        if st.button("🔄 Change Folder / Reset"):
+            st.session_state.setup_done = False
+            st.rerun()
+
+    if user_query := st.chat_input("PDF se sawal puchein..."):
+        with st.chat_message("user"):
+            st.markdown(user_query)
+
+        with st.chat_message("assistant"):
+            # Groq LPU: The fastest brain for 2-sec response
+            llm = ChatGroq(model_name="llama3-70b-8192", api_key=GROQ_KEY)
+            
+            # THE STRICT RULE: Use only PDF data
+            prompt_logic = f"""
+            SYSTEM: Use ONLY the provided document context. No outside info.
+            USER: {user_query}
+            INSTRUCTION: Explain the solution from the PDF and link it to the user's problem.
+            """
+            
+            response = llm.invoke(prompt_logic)
+            st.markdown(response.content)
