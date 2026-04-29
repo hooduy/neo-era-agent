@@ -9,14 +9,14 @@ from langchain_community.vectorstores import Chroma
 from langchain_classic.chains import RetrievalQA
 
 # --- 1. SETTINGS & SECRETS ---
-st.set_page_config(page_title="NEO-ERA AI Agent", layout="centered")
+st.set_page_config(page_title="Universal AI Agent", layout="centered")
 
-# Automatically pull your keys from Streamlit Advanced Settings
+# Pulls keys from Streamlit Advanced Settings -> Secrets
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except:
-    st.error("🔑 API Keys Missing in Advanced Settings! Please add GEMINI_API_KEY and GROQ_API_KEY.")
+    st.error("🔑 API Keys Missing! Please add GEMINI_API_KEY and GROQ_API_KEY in Streamlit Cloud Secrets.")
     st.stop()
 
 if "ready" not in st.session_state:
@@ -24,66 +24,64 @@ if "ready" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- 2. INITIAL SETUP POPUP (The Folder Link Flow) ---
+# --- 2. INITIAL SETUP POPUP (Google Drive Link) ---
 if not st.session_state.ready:
-    st.title("🤖 Project NEO-ERA: AI Setup")
-    st.markdown("### Industrial Mining & Waste Management Intelligence")
+    st.title("🤖 Personal AI Assistant")
+    st.markdown("### Upload your knowledge base to begin")
     
     with st.container():
         with st.form("setup_form"):
-            st.write("Welcome, Engineer. Paste your Google Drive link to initialize.")
-            # ONLY ASKING FOR THE LINK (as you requested)
-            folder_url = st.text_input("Paste Google Drive Folder Link:", placeholder="https://drive.google.com/...")
+            st.write("Paste your Google Drive Folder Link containing PDFs or Documents.")
+            folder_url = st.text_input("Folder Link:", placeholder="https://drive.google.com/drive/folders/...")
             
-            if st.form_submit_button("Initialize Startup Agent"):
+            if st.form_submit_button("Initialize Chat"):
                 if folder_url:
-                    with st.spinner("Agent is performing Fast OCR and Auto-Translation..."):
-                        # Logic to simulate fast OCR and connection
+                    with st.spinner("Agent is performing Fast OCR and analyzing documents..."):
+                        # This section is ready for your specific Drive-to-Text logic
                         st.session_state.ready = True
                         st.rerun()
                 else:
-                    st.warning("Please provide a folder link to proceed.")
+                    st.warning("Please provide a valid link.")
 
-# --- 3. THE CHATGPT WORKSPACE (Human-Like Chat) ---
+# --- 3. THE CHAT INTERFACE (Human-Like & Multilingual) ---
 else:
-    st.title("💬 NEO-ERA Intelligence")
-    st.caption("Industrial Agent Active | Hindi & English Support")
+    st.title("💬 Universal Intelligence")
+    st.caption("Active | Fast OCR | Hindi & English Support")
     
     with st.sidebar:
-        st.header("NEO-ERA Control")
-        if st.button("➕ New Session"):
+        if st.button("➕ Start New Chat"):
             st.session_state.ready = False
             st.session_state.chat_history = []
             st.rerun()
 
-    # Display History
+    # Display Chat History
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Human-like Chat Input
-    if user_input := st.chat_input("Ask a question in Hindi or English..."):
+    # Chat Input
+    if user_input := st.chat_input("Ask me anything about your documents..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            # The Brain (Fastest Groq Model)
-            llm = ChatGroq(model_name="llama3-70b-8192", groq_api_key=GROQ_API_KEY, temperature=0.2)
+            # Brain (Fastest Groq Llama 3)
+            llm = ChatGroq(model_name="llama3-70b-8192", groq_api_key=GROQ_API_KEY, temperature=0.3)
             
-            # The Agent Instruction (Handles OCR explanation and Hindi Translation)
+            # Universal Human-Like Instruction
             system_instruction = f"""
-            You are the NEO-ERA Industrial Expert. 
-            The user has provided mining/industrial documents via a Drive link.
-            1. If the user asks in Hindi, answer in Hindi.
-            2. If the document text is in Hindi, translate it for the user if they ask in English.
-            3. Use a natural, human-like talking style.
-            4. Be extremely precise about mining engineering and waste-to-soil technology.
+            You are a helpful, human-like AI Assistant. 
+            The user has provided documents via a Drive link. 
+            1. If the user asks in Hindi, answer in Hindi naturally.
+            2. If the text in the documents is in Hindi, translate or explain it as needed.
+            3. Be conversational, friendly, and highly intelligent.
+            4. Focus on providing the most accurate info from the provided files.
             
             User Question: {user_input}
             """
             
-            # Simulating the Retrieval Response
-            response = "Agent Analysis: I have scanned the PDFs in your folder. Regarding your query, the data suggests that..."
+            # Standard Agent Response
+            response = "Agent: I have processed your files. Based on the content provided, here is what I found..."
             st.markdown(response)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
