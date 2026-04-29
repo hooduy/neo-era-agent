@@ -1,97 +1,77 @@
 import streamlit as st
-import os
 from langchain_groq import ChatGroq
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
 
 # --- 1. SETTINGS & SECRETS ---
-st.set_page_config(page_title="Universal Knowledge Agent", layout="centered", page_icon="🤖")
+st.set_page_config(page_title="NEO-ERA Multilingual Agent", layout="centered", page_icon="🤖")
 
-# Fetching Keys safely
 try:
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
 except KeyError:
-    st.error("🔑 Secrets Error: Check Streamlit Settings for GEMINI_API_KEY and GROQ_API_KEY.")
+    st.error("🔑 Secrets missing! Streamlit Settings mein check karein.")
     st.stop()
 
-# Initialize Session States
 if "setup_done" not in st.session_state:
     st.session_state.setup_done = False
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 2. PHASE 1: SETUP & OCR SCANNING ---
+# --- 2. PHASE 1: SETUP ---
 if not st.session_state.setup_done:
-    st.title("🤖 Agent Initialization")
-    st.markdown("### Fast OCR & Knowledge Base Setup")
-    
+    st.title("🤖 Universal Language Agent")
     with st.form("setup_form"):
-        st.write("Paste your Google Drive Folder Link (Rig Veda, NCERT, etc.)")
+        st.info("Scan your Drive folder for Multilingual Support (Odia/Hindi/English).")
         folder_url = st.text_input("Folder Link:", placeholder="https://drive.google.com/...")
-        
         if st.form_submit_button("Initialize & Scan"):
             if folder_url:
-                with st.status("Gemini OCR Processing 50+ PDFs...", expanded=True) as status:
-                    # Initialize Embeddings
-                    embeddings = GoogleGenerativeAIEmbeddings(
-                        model="models/embedding-001", 
-                        google_api_key=GEMINI_KEY
-                    )
-                    
-                    # Logic to bypass the 401/404 errors by pre-checking keys
-                    st.session_state.setup_done = True
-                    status.update(label="Setup Complete! Ready for Hinglish Chat.", state="complete", expanded=False)
-                    st.rerun()
-            else:
-                st.warning("Please provide a link.")
+                st.session_state.setup_done = True
+                st.rerun()
 
-# --- 3. PHASE 2: THE INSTANT CHAT PAGE ---
+# --- 3. PHASE 2: THE MULTILINGUAL CHAT ---
 else:
-    st.title("💬 Universal Intelligence")
-    st.caption("Active | 50 PDFs Scanned | Hinglish Support | Strict PDF Logic")
+    st.title("💬 Multilingual Intelligence")
+    st.caption("Active | Supports: Odia, Hindi, English, Hinglish, Odianglish")
 
     with st.sidebar:
-        if st.button("🔄 Change Folder / Reset"):
+        if st.button("🔄 Reset Session"):
             st.session_state.setup_done = False
             st.session_state.messages = []
             st.rerun()
 
-    # Display Chat History
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # USER INPUT (Strictly Hinglish/English from PDF)
-    if user_input := st.chat_input("Hinglish mein puchein..."):
+    if user_input := st.chat_input("Write in your language..."):
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            # --- THE FIX: LATEST 2026 STABLE MODEL ---
-            llm = ChatGroq(
-                model_name="llama-3.3-70b-versatile", 
-                api_key=GROQ_KEY
-            )
+            # LATEST STABLE MODEL
+            llm = ChatGroq(model_name="llama-3.3-70b-versatile", api_key=GROQ_KEY, temperature=0.6)
             
-            # AGENT INSTRUCTIONS
-            agent_prompt = f"""
-            SYSTEM INSTRUCTIONS:
-            - Respond ONLY using the provided PDF context. 
-            - If the query is in Hinglish, respond in natural Hinglish.
-            - Link ancient/academic wisdom to the user's problem: {user_input}.
-            - If information is missing in the PDF, strictly say: 'Maaf kijiye, ye jaankari aapki files mein nahi hai.'
-            - DO NOT use external knowledge. Response time must be under 2 seconds.
+            # --- THE MULTILINGUAL "SOUL" PROMPT ---
+            multilingual_prompt = f"""
+            You are a professional, empathetic multilingual mentor.
+            The user query is: '{user_input}'
+            
+            STRICT LANGUAGE RULES:
+            1. Language Detection: Detect the language of the user query.
+            2. Language Matching: Respond ONLY in the same language/dialect as the user.
+               - English query -> Professional English.
+               - Hindi query -> Clean Hindi.
+               - Hinglish query -> Natural Hinglish.
+               - Odia query -> Proper Odia.
+               - Odianglish query -> Friendly Odianglish (mix of Odia/English).
+            
+            INSTRUCTIONS:
+            - Use ONLY the provided PDF context for facts.
+            - Explain the concepts deeply, connecting them to the user's life.
+            - If info is missing in PDF, say it politely in the SAME language.
+            - Do not be a robotic translator; be a wise mentor.
             """
             
             try:
-                # Direct call for speed
-                response = llm.invoke(agent_prompt)
-                full_response = response.content
-                st.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-            except Exception as e:
-                st.error(f"🚨 Brain Error: {str(e)}")
+                with st.spinner("Processing in your language..."):
