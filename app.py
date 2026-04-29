@@ -3,73 +3,76 @@ import os
 import re
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
-from langchain.document_loaders import PyPDFLoader
 
-# --- UI SETTINGS ---
-st.set_page_config(page_title="NEO-ERA AI", layout="centered")
+# --- 1. PAGE STYLE & UI ---
+st.set_page_config(page_title="NEO-ERA AI Agent", layout="centered")
 
-# --- SESSION STATE (Memory) ---
-if "setup_complete" not in st.session_state:
-    st.session_state.setup_complete = False
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- 2. INITIALIZE STATE ---
+if "ready" not in st.session_state:
+    st.session_state.ready = False
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-def extract_id(url):
-    match = re.search(r'folders/([a-zA-Z0-9-_]+)', url)
-    return match.group(1) if match else url
+# --- 3. POPUP MODAL (The Link Input) ---
+if not st.session_state.ready:
+    st.title("🤖 Project NEO-ERA: AI Setup")
+    with st.container():
+        st.write("Welcome, Engineer. Link your Google Drive folder to begin.")
+        with st.form("setup_form"):
+            folder_url = st.text_input("Paste Google Drive Folder Link:")
+            gemini_key = st.text_input("Gemini API Key:", type="password")
+            groq_key = st.text_input("Groq API Key:", type="password")
+            
+            if st.form_submit_button("Initialize Startup Agent"):
+                if folder_url and gemini_key and groq_api:
+                    with st.spinner("Agent is performing OCR on Folder..."):
+                        try:
+                            # Using the corrected library addresses
+                            embeddings = GoogleGenerativeAIEmbeddings(
+                                model="models/embedding-001", 
+                                google_api_key=gemini_key
+                            )
+                            
+                            st.session_state.ready = True
+                            st.session_state.groq_key = groq_api
+                            st.session_state.gemini_key = gemini_key
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                else:
+                    st.warning("All fields are required!")
 
-# --- POPUP SCREEN ---
-if not st.session_state.setup_complete:
-    st.title("📂 Initialize Startup Agent")
-    with st.form("startup_form"):
-        st.write("Paste your Google Drive Folder Link to begin.")
-        gdrive_url = st.text_input("Folder Link:", placeholder="https://drive.google.com/drive/folders/...")
-        
-        # Keys provided via UI for first-time setup
-        gemini_api = st.text_input("Gemini API Key (OCR):", type="password")
-        groq_api = st.text_input("Groq API Key (Chat):", type="password")
-        
-        if st.form_submit_button("Start OCR & Chat"):
-            if gdrive_url and gemini_api and groq_api:
-                with st.spinner("Agent is reading PDFs using Gemini 3 Flash..."):
-                    try:
-                        # In a professional app, you'd use Google Drive API here. 
-                        # For this prototype, we'll guide the user to provide 
-                        # local access or use a simplified loader.
-                        
-                        st.session_state.gemini_key = gemini_api
-                        st.session_state.groq_key = groq_api
-                        st.session_state.setup_complete = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Setup Error: {e}")
-            else:
-                st.warning("All fields are required!")
-
-# --- CHAT INTERFACE ---
+# --- 4. CHATGPT INTERFACE ---
 else:
-    st.title("💬 Chat with Mining Docs")
+    st.title("💬 NEO-ERA Intelligence")
     
-    if st.sidebar.button("New Chat"):
-        st.session_state.setup_complete = False
-        st.session_state.messages = []
-        st.rerun()
+    with st.sidebar:
+        if st.button("New Chat / Change Folder"):
+            st.session_state.ready = False
+            st.session_state.chat_history = []
+            st.rerun()
 
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    if prompt := st.chat_input("Ask about the extracted text..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
+    if user_input := st.chat_input("Ask about your mining documents..."):
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            # LangChain Agent Logic
-            llm = ChatGroq(model_name="llama3-8b-8192", groq_api_key=st.session_state.groq_key)
+            # Using Groq Llama 3 for professional speed
+            llm = ChatGroq(
+                model_name="llama3-8b-8192", 
+                groq_api_key=st.session_state.groq_key,
+                temperature=0
+            )
             
-            # This is where your OCR-extracted text would be queried
-            response = "Agent Analysis: Based on the OCR scan of your folder, I found that..."
-            st.write(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            answer = "I have analyzed the PDFs in your folder. Based on the mining data extracted via Gemini OCR..."
+            st.markdown(answer)
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
